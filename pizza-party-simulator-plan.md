@@ -78,6 +78,7 @@ A management/simulation game where players host a pizza party and need to keep g
   - Arcade machines
   - Photo booth
   - Music/DJ booth
+  -   you often have to ask the dj to turn down the music
   - Board games area
   - TV/sports viewing
 - **Management**: Keep activities engaging, prevent boredom
