@@ -1,5 +1,52 @@
 # Pizza Party Simulator - Game Design Document
 
+## Tech Stack
+- **Engine**: Phaser 3
+- **Language**: TypeScript
+- **Art Style**: Cartoony 2D
+- **Deployment**: Vercel (web-based)
+
+---
+
+## Implementation Phases
+
+### Phase 1: MVP (Core Loop)
+- [ ] Project setup (Phaser 3 + TypeScript + Vite)
+- [ ] Basic venue rendering (top-down party space)
+- [ ] Guest system (spawn, move, basic AI)
+- [ ] Needs system (hunger only for MVP)
+- [ ] Pizza mechanics (order, deliver, guests eat)
+- [ ] Trash system (guests drop trash, player cleans)
+- [ ] Win/lose condition (party timer, satisfaction threshold)
+
+### Phase 2: Expanded Needs
+- [ ] Thirst meter + drink station
+- [ ] Bladder meter + bathroom system
+- [ ] Bathroom signage mechanics
+- [ ] Social interaction meter
+- [ ] Entertainment meter
+
+### Phase 3: Staff & Training
+- [ ] Bartender system (hire, train levels 1-5)
+- [ ] Drunk guest mechanics
+- [ ] Cleaning staff (hire, task priorities)
+- [ ] Staff AI and pathfinding
+
+### Phase 4: Entertainment & Polish
+- [ ] Entertainment installations (arcade, photo booth, DJ, etc.)
+- [ ] Guest personality types affecting behavior
+- [ ] Conversation group mechanics
+- [ ] Party rating system with detailed feedback
+
+### Phase 5: Challenge Scenarios
+- [ ] Kids birthday party
+- [ ] Corporate event
+- [ ] College party
+- [ ] Family reunion
+- [ ] Small intimate gathering
+
+---
+
 ## Core Game Concept
 A management/simulation game where players host a pizza party and need to keep guests happy by managing resources, entertainment, and facilities.
 
