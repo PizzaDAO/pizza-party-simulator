@@ -1,4 +1,5 @@
 import { Guest } from '../entities/Guest';
+import { BLADDER_CONFIG } from '../config/GameConfig';
 
 /**
  * NeedsSystem - Tracks party-wide satisfaction metrics.
@@ -34,5 +35,13 @@ export class NeedsSystem {
 
   public getGuestsNeedingPizza(): Guest[] {
     return this.guests.filter((g) => g.getHunger() < 30);
+  }
+
+  public getGuestsNeedingDrinks(): Guest[] {
+    return this.guests.filter((g) => g.getThirst() < 30);
+  }
+
+  public getGuestsNeedingBathroom(): Guest[] {
+    return this.guests.filter((g) => g.getBladder() >= BLADDER_CONFIG.urgentThreshold);
   }
 }
