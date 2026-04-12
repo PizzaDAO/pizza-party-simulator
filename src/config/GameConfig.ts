@@ -214,6 +214,110 @@ export const INTRODUCTION_CONFIG = {
   funBonus: 5,
 };
 
+// --- Phase 5: Party Promotion ---
+
+export const HYPE_CONFIG = {
+  initialHype: 20,
+  maxHype: 100,
+  highSatBonus: 2,
+  highSatThreshold: 65,
+  dancerBonus: 0.5,
+  fullCapacityBonus: 1,
+  introductionBonus: 5,
+  guestLeftPenalty: 8,
+  lowSatPenalty: 3,
+  lowSatThreshold: 40,
+  trashPenalty: 1,
+  trashThreshold: 10,
+  drunkPenalty: 2,
+  spawnTiers: [
+    { minHype: 0,  spawnInterval: 5000 },
+    { minHype: 26, spawnInterval: 4000 },
+    { minHype: 51, spawnInterval: 3000 },
+    { minHype: 76, spawnInterval: 2500 },
+  ],
+  guestCapTiers: [
+    { minHype: 0,  maxGuests: 12 },
+    { minHype: 60, maxGuests: 15 },
+    { minHype: 80, maxGuests: 18 },
+  ],
+};
+
+export const SOCIAL_MEDIA_CONFIG = {
+  postInterval: { min: 8000, max: 15000 },
+  positiveThreshold: 60,
+  negativeThreshold: 35,
+  positiveHypeBonus: 3,
+  negativeHypePenalty: 5,
+  positiveEmojis: ['\u{1F525}', '\u2764\uFE0F', '\u2B50', '\u{1F389}', '\u{1F4F8}'],
+  negativeEmojis: ['\u{1F44E}', '\u{1F634}', '\u{1F621}', '\u{1F5D1}\uFE0F'],
+  neutralEmojis: ['\u{1F914}', '\u{1F937}'],
+  chattyMultiplier: 2.0,
+  shyMultiplier: 0.5,
+  floatDuration: 2000,
+  floatHeight: 60,
+};
+
+export const HIT_THE_CHATS_CONFIG = {
+  boostDuration: 15000,
+  spawnIntervalMultiplier: 0.5,
+  minSpawnInterval: 1500,
+  immediateSpawns: 2,
+  highHypeImmediateSpawns: 3,
+  highHypeThreshold: 50,
+  hypeBonus: 5,
+  cooldown: 45000,
+  maxUses: 3,
+  chatEmojis: ['\u{1F4AC}', '\u{1F4F1}', '\u{1F5E3}\uFE0F', '\u{1F4F2}', '\u{1F440}'],
+};
+
+export enum VIPType {
+  PizzaChef = 'pizzaChef',
+  Influencer = 'influencer',
+  DJSuperstar = 'djSuperstar',
+}
+
+export const VIP_CONFIG = {
+  arrivalDelay: 5000,
+  startingNeeds: { min: 70, max: 90 },
+  leavePenalty: 15,
+  types: {
+    [VIPType.PizzaChef]: {
+      hypeThreshold: 40, icon: '\u{1F468}\u200D\u{1F373}', label: 'Pizza Chef',
+      color: 0xff6b35, autoPizzaInterval: 8000,
+    },
+    [VIPType.Influencer]: {
+      hypeThreshold: 60, icon: '\u{1F933}', label: 'Influencer',
+      color: 0xe91e63, passiveFunBonus: 2,
+    },
+    [VIPType.DJSuperstar]: {
+      hypeThreshold: 80, icon: '\u{1F31F}', label: 'DJ Superstar',
+      color: 0xffd700, djBonusMultiplier: 2.0, passiveHypeBonus: 1,
+    },
+  },
+};
+
+export const MILESTONE_CONFIG = {
+  goodVibes: {
+    satThreshold: 70, durationRequired: 10000,
+    hypeReward: 10, funBonus: 5,
+  },
+  fullHouse: {
+    guestThreshold: 12, hypeReward: 15,
+    spawnBoostDuration: 10000, spawnBoostReduction: 1000,
+  },
+  socialButterfly: {
+    introductionsRequired: 5, hypeReward: 10, socialBonus: 10,
+  },
+  cleanMachine: {
+    maxTrash: 0, minGuests: 8, hypeReward: 10,
+    trashReductionDuration: 20000, trashDropMultiplier: 0.5,
+  },
+  hypeTrain: {
+    hypeThreshold: 80, timeReward: 15, bonusGuests: 3,
+  },
+};
+
 export const PARTY_CONFIG = {
   duration: 120,
   winThreshold: 50,

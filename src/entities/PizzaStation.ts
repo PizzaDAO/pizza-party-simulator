@@ -146,6 +146,10 @@ export class PizzaStation extends Phaser.GameObjects.Container {
     return null;
   }
 
+  public isFullForType(type: PizzaType): boolean {
+    return (this.inventory.get(type) || 0) >= PIZZA_CONFIG.maxSlicesPerType;
+  }
+
   public getSliceCount(): number {
     let total = 0;
     for (const count of this.inventory.values()) {
