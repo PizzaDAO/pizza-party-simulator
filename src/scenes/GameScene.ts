@@ -14,6 +14,8 @@ import {
   PARTY_CONFIG, ENTERTAINMENT, EntertainmentDef,
   CONVERSATION_CONFIG, Personality,
   DJ_VOLUME_CONFIG, INTRODUCTION_CONFIG,
+  HYPE_CONFIG, SOCIAL_MEDIA_CONFIG, HIT_THE_CHATS_CONFIG,
+  VIPType, VIP_CONFIG, MILESTONE_CONFIG, PizzaType,
 } from '../config/GameConfig';
 
 export class GameScene extends Phaser.Scene {
@@ -62,6 +64,37 @@ export class GameScene extends Phaser.Scene {
   private selectionCircle: Phaser.GameObjects.Graphics | null = null;
   private introducedPairs: Set<string> = new Set();
   private introductionCooldown: number = 0;
+
+  // === Phase 5: Hype Meter ===
+  private hypeLevel: number = 0;
+  private hypeText!: Phaser.GameObjects.Text;
+  private hypeBar!: Phaser.GameObjects.Graphics;
+
+  // === Phase 5: Social Media ===
+  private socialMediaTimer: number = 0;
+  private socialMediaDelay: number = 0;
+  private totalPositivePosts: number = 0;
+  private totalNegativePosts: number = 0;
+
+  // === Phase 5: Hit the Chats ===
+  private chatUsesRemaining: number = 0;
+  private chatCooldown: number = 0;
+  private chatBoostTimer: number = 0;
+  private chatBoostActive: boolean = false;
+  private chatButton!: Phaser.GameObjects.Container;
+  private chatButtonText!: Phaser.GameObjects.Text;
+
+  // === Phase 5: VIP Guests ===
+  private activeVIPs: Map<VIPType, Guest> = new Map();
+  private vipThresholdsCrossed: Set<VIPType> = new Set();
+  private pizzaChefTimer: number = 0;
+
+  // === Phase 5: Milestones ===
+  private milestonesAchieved: Set<string> = new Set();
+  private goodVibesDuration: number = 0;
+  private trashDropMultiplier: number = 1;
+  private trashReductionTimer: number = 0;
+  private milestoneSpawnBoostTimer: number = 0;
 
   // HUD elements
   private timerText!: Phaser.GameObjects.Text;
@@ -118,6 +151,33 @@ export class GameScene extends Phaser.Scene {
     this.introducedPairs = new Set();
     this.introductionCooldown = 0;
 
+    // Phase 5: Hype Meter reset
+    this.hypeLevel = HYPE_CONFIG.initialHype;
+
+    // Phase 5: Social Media reset
+    this.socialMediaTimer = 0;
+    this.socialMediaDelay = Phaser.Math.Between(SOCIAL_MEDIA_CONFIG.postInterval.min, SOCIAL_MEDIA_CONFIG.postInterval.max);
+    this.totalPositivePosts = 0;
+    this.totalNegativePosts = 0;
+
+    // Phase 5: Hit the Chats reset
+    this.chatUsesRemaining = HIT_THE_CHATS_CONFIG.maxUses;
+    this.chatCooldown = 0;
+    this.chatBoostTimer = 0;
+    this.chatBoostActive = false;
+
+    // Phase 5: VIP Guests reset
+    this.activeVIPs = new Map();
+    this.vipThresholdsCrossed = new Set();
+    this.pizzaChefTimer = 0;
+
+    // Phase 5: Milestones reset
+    this.milestonesAchieved = new Set();
+    this.goodVibesDuration = 0;
+    this.trashDropMultiplier = 1;
+    this.trashReductionTimer = 0;
+    this.milestoneSpawnBoostTimer = 0;
+
     this.drawVenue();
     this.drawEntertainment();
     this.drawTrashCans();
@@ -136,6 +196,9 @@ export class GameScene extends Phaser.Scene {
 
     // Feature 4: Trash can placement button
     this.createTrashCanButton();
+
+    // Phase 5: Chat button
+    this.createChatButton();
 
     this.createStartOverlay();
 
@@ -464,6 +527,9 @@ export class GameScene extends Phaser.Scene {
         guestA.modifyFun(INTRODUCTION_CONFIG.funBonus);
         guestB.modifyFun(INTRODUCTION_CONFIG.funBonus);
 
+        // Phase 5: Hype bonus from introductions
+        this.hypeLevel = Math.min(HYPE_CONFIG.maxHype, this.hypeLevel + HYPE_CONFIG.introductionBonus);
+
         // Handshake emoji float
         const emoji = this.add.text(clampedX, clampedY - 20, '\u{1F91D}', { fontSize: '20px' }).setOrigin(0.5, 0.5).setDepth(50);
         this.tweens.add({
@@ -685,6 +751,11 @@ export class GameScene extends Phaser.Scene {
     this.drinkCountText = this.add.text(15, hudY + 64, '', style).setOrigin(0, 0);
     this.staffCountText = this.add.text(15, hudY + 80, '', style).setOrigin(0, 0);
 
+    // Hype meter
+    this.hypeBar = this.add.graphics();
+    this.hypeBar.setDepth(10);
+    this.hypeText = this.add.text(GAME_WIDTH / 2, 28, '', { fontSize: '10px', color: '#ff9800' }).setOrigin(0.5, 0).setDepth(10);
+
     this.messageText = this.add.text(GAME_WIDTH / 2, 92, '', {
       fontSize: '14px', color: '#ffcc00', fontStyle: 'bold',
     }).setOrigin(0.5, 0.5);
@@ -722,6 +793,18 @@ export class GameScene extends Phaser.Scene {
     const drunkCount = this.guests.filter(g => g.getIsDrunk()).length;
     const staffStr = `\u{1F454} Staff: ${this.staffMembers.length}` + (drunkCount > 0 ? ` | \u{1F974} Drunk: ${drunkCount}` : '');
     this.staffCountText.setText(staffStr);
+
+    // Hype bar
+    this.hypeBar.clear();
+    const hypeBarWidth = 120;
+    const hypeBarX = GAME_WIDTH / 2 - hypeBarWidth / 2;
+    this.hypeBar.fillStyle(0x333333, 0.8);
+    this.hypeBar.fillRoundedRect(hypeBarX, 28, hypeBarWidth, 8, 3);
+    const hypePct = this.hypeLevel / HYPE_CONFIG.maxHype;
+    const hypeColor = hypePct < 0.3 ? 0x3498db : hypePct < 0.6 ? 0xff9800 : 0xffd700;
+    this.hypeBar.fillStyle(hypeColor, 1);
+    this.hypeBar.fillRoundedRect(hypeBarX, 28, hypeBarWidth * hypePct, 8, 3);
+    this.hypeText.setText(`Hype: ${Math.round(this.hypeLevel)}%`);
 
     // Warning messages
     const needingBathroom = this.needsSystem.getGuestsNeedingBathroom().length;
@@ -773,6 +856,10 @@ export class GameScene extends Phaser.Scene {
       '\u2022 \u{1F579}\u{FE0F}Arcade \u{1F4F8}Photo Booth \u{1F3A7}DJ Booth boost fun!\n' +
       '\u2022 Click two guests to introduce them \u{1F91D}\n' +
       '\u2022 Press P to pause | Place extra trash cans!\n' +
+      '\u2022 Hype meter affects guest spawn rate and max guests!\n' +
+      '\u2022 Hit the Chats to blast group chats for more guests\n' +
+      '\u2022 Keep hype high to attract VIP guests with special abilities\n' +
+      '\u2022 Earn milestones for bonus rewards!\n' +
       '\u2022 Keep average satisfaction above 50% to win!', {
       fontSize: '11px', color: '#aaaaaa', align: 'center', lineSpacing: 4,
     }).setOrigin(0.5, 0.5);
@@ -815,7 +902,7 @@ export class GameScene extends Phaser.Scene {
     }).setOrigin(0.5, 0.5);
 
     const drunkCount = this.guests.filter(g => g.getIsDrunk()).length;
-    const stats = this.add.text(GAME_WIDTH / 2, 330,
+    const stats = this.add.text(GAME_WIDTH / 2, 340,
       `Final Satisfaction: ${Math.round(avgSat)}%\n` +
       `Total Guests: ${this.totalGuestsSpawned}\n` +
       `Guests who left unhappy: ${this.guestsLeft}\n` +
@@ -823,8 +910,13 @@ export class GameScene extends Phaser.Scene {
       `Staff hired: ${this.staffMembers.length}\n` +
       `Drunk guests: ${drunkCount}\n` +
       `Introductions made: ${this.introducedPairs.size}\n` +
-      `Bathroom signs: ${this.signsPosted ? 'Posted' : 'Not posted'}`, {
-      fontSize: '14px', color: '#ffffff', align: 'center', lineSpacing: 6,
+      `Bathroom signs: ${this.signsPosted ? 'Posted' : 'Not posted'}\n` +
+      `Hype level: ${Math.round(this.hypeLevel)}%\n` +
+      `Social media: ${this.totalPositivePosts} positive / ${this.totalNegativePosts} negative\n` +
+      `VIPs attracted: ${this.activeVIPs.size}\n` +
+      `Chat blasts: ${HIT_THE_CHATS_CONFIG.maxUses - this.chatUsesRemaining}\n` +
+      `Milestones: ${this.milestonesAchieved.size}/5`, {
+      fontSize: '13px', color: '#ffffff', align: 'center', lineSpacing: 4,
     }).setOrigin(0.5, 0.5);
 
     const restart = this.add.text(GAME_WIDTH / 2, 440, '[ Press SPACE to Play Again ]', {
@@ -855,29 +947,7 @@ export class GameScene extends Phaser.Scene {
     return Math.max(...bartenders.map(b => b.level));
   }
 
-  private spawnGuest(): void {
-    if (this.guests.length >= GUEST_CONFIG.maxGuests) return;
-
-    const entrance = ZONES.entrance;
-    const guest = new Guest(
-      this,
-      entrance.x + entrance.width / 2 + Phaser.Math.Between(-20, 20),
-      entrance.y,
-      this.getUniqueName()
-    );
-
-    guest.bathroomSignsPosted = this.signsPosted;
-
-    // Feature 5: Make guests clickable for introductions
-    guest.setSize(24, 24);
-    guest.setInteractive();
-    guest.setDepth(6);
-    guest.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-      pointer.event.stopPropagation(); // Prevent scene-level handlers
-      if (this.isPlacingTrashCan) return;
-      this.onGuestClicked(guest);
-    });
-
+  private setupGuestCallbacks(guest: Guest): void {
     // Pizza callback — updated for pizza variety
     guest.onWantsPizza = () => {
       if (this.pizzaStation.hasSlices()) {
@@ -980,8 +1050,12 @@ export class GameScene extends Phaser.Scene {
       return false;
     };
 
-    // Trash callback — updated for trash can proximity absorption
+    // Trash callback — with Clean Machine milestone reduction
     guest.onDropTrash = (x: number, y: number) => {
+      // Clean Machine milestone: reduced trash drop
+      if (this.trashDropMultiplier < 1 && Math.random() > this.trashDropMultiplier) {
+        return; // Reduced by milestone
+      }
       // Check if near a trash can — absorb instead of littering
       for (const can of this.trashCanPositions) {
         const dx = x - can.x;
@@ -994,6 +1068,32 @@ export class GameScene extends Phaser.Scene {
         this.spawnTrash(x, y);
       }
     };
+  }
+
+  private spawnGuest(): void {
+    if (this.guests.length >= this.getCurrentMaxGuests()) return;
+
+    const entrance = ZONES.entrance;
+    const guest = new Guest(
+      this,
+      entrance.x + entrance.width / 2 + Phaser.Math.Between(-20, 20),
+      entrance.y,
+      this.getUniqueName()
+    );
+
+    guest.bathroomSignsPosted = this.signsPosted;
+
+    // Feature 5: Make guests clickable for introductions
+    guest.setSize(24, 24);
+    guest.setInteractive();
+    guest.setDepth(6);
+    guest.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      pointer.event.stopPropagation(); // Prevent scene-level handlers
+      if (this.isPlacingTrashCan) return;
+      this.onGuestClicked(guest);
+    });
+
+    this.setupGuestCallbacks(guest);
 
     guest.on('guest-left', (g: Guest) => {
       this.removeGuest(g);
@@ -1014,6 +1114,13 @@ export class GameScene extends Phaser.Scene {
     // Clean up selection if this guest was selected
     if (this.selectedGuest === guest) {
       this.clearGuestSelection();
+    }
+    // Phase 5: Hype penalty for guest leaving
+    this.hypeLevel = Math.max(0, this.hypeLevel - HYPE_CONFIG.guestLeftPenalty);
+    // Phase 5: VIP cleanup and extra penalty
+    if (guest.isVIP() && guest.vipType) {
+      this.activeVIPs.delete(guest.vipType);
+      this.hypeLevel = Math.max(0, this.hypeLevel - VIP_CONFIG.leavePenalty);
     }
     this.needsSystem.unregisterGuest(guest);
     const idx = this.guests.indexOf(guest);
@@ -1134,7 +1241,12 @@ export class GameScene extends Phaser.Scene {
           const dx = guest.x - (dj.x + dj.width / 2);
           const dy = guest.y - (dj.y + dj.height / 2);
           if (Math.sqrt(dx * dx + dy * dy) < level.passiveRadius) {
-            guest.modifyFun(level.passiveFunBonus * dt);
+            let djFunBonus = level.passiveFunBonus;
+            // Phase 5: DJ Superstar doubles DJ fun bonus
+            if (this.activeVIPs.has(VIPType.DJSuperstar)) {
+              djFunBonus *= VIP_CONFIG.types[VIPType.DJSuperstar].djBonusMultiplier;
+            }
+            guest.modifyFun(djFunBonus * dt);
           }
         }
       }
@@ -1221,6 +1333,436 @@ export class GameScene extends Phaser.Scene {
     return false;
   }
 
+  // === Phase 5: Hype Meter ===
+
+  private updateHype(delta: number): void {
+    const dt = delta / 1000;
+    const avgSat = this.needsSystem.getAverageSatisfaction();
+
+    // Positive factors
+    if (avgSat > HYPE_CONFIG.highSatThreshold) {
+      this.hypeLevel += HYPE_CONFIG.highSatBonus * dt;
+    }
+
+    const dancerCount = this.guests.filter(g => g.getGuestState() === GuestState.Dancing).length;
+    this.hypeLevel += HYPE_CONFIG.dancerBonus * dancerCount * dt;
+
+    if (this.guests.length >= this.getCurrentMaxGuests()) {
+      this.hypeLevel += HYPE_CONFIG.fullCapacityBonus * dt;
+    }
+
+    // Negative factors
+    if (avgSat < HYPE_CONFIG.lowSatThreshold) {
+      this.hypeLevel -= HYPE_CONFIG.lowSatPenalty * dt;
+    }
+
+    if (this.trashItems.length > HYPE_CONFIG.trashThreshold) {
+      this.hypeLevel -= HYPE_CONFIG.trashPenalty * dt;
+    }
+
+    const drunkCount = this.guests.filter(g => g.getIsDrunk()).length;
+    this.hypeLevel -= HYPE_CONFIG.drunkPenalty * drunkCount * dt;
+
+    this.hypeLevel = Phaser.Math.Clamp(this.hypeLevel, 0, HYPE_CONFIG.maxHype);
+
+    // Check VIP arrivals
+    this.checkVIPArrivals();
+  }
+
+  private getCurrentSpawnInterval(): number {
+    let interval = GUEST_CONFIG.spawnInterval;
+    // Apply hype tier
+    for (const tier of [...HYPE_CONFIG.spawnTiers].reverse()) {
+      if (this.hypeLevel >= tier.minHype) {
+        interval = tier.spawnInterval;
+        break;
+      }
+    }
+    // Apply chat boost if active
+    if (this.chatBoostActive) {
+      interval = Math.max(HIT_THE_CHATS_CONFIG.minSpawnInterval, interval * HIT_THE_CHATS_CONFIG.spawnIntervalMultiplier);
+    }
+    // Apply milestone spawn boost
+    if (this.milestoneSpawnBoostTimer > 0) {
+      interval = Math.max(1500, interval - MILESTONE_CONFIG.fullHouse.spawnBoostReduction);
+    }
+    return interval;
+  }
+
+  private getCurrentMaxGuests(): number {
+    for (const tier of [...HYPE_CONFIG.guestCapTiers].reverse()) {
+      if (this.hypeLevel >= tier.minHype) {
+        return tier.maxGuests;
+      }
+    }
+    return GUEST_CONFIG.maxGuests;
+  }
+
+  // === Phase 5: Social Media Posts ===
+
+  private updateSocialMedia(delta: number): void {
+    this.socialMediaTimer += delta;
+    if (this.socialMediaTimer < this.socialMediaDelay) return;
+
+    // Reset timer
+    this.socialMediaTimer = 0;
+    this.socialMediaDelay = Phaser.Math.Between(SOCIAL_MEDIA_CONFIG.postInterval.min, SOCIAL_MEDIA_CONFIG.postInterval.max);
+
+    // Pick a random non-leaving guest
+    const eligibleGuests = this.guests.filter(g => g.getGuestState() !== GuestState.Leaving);
+    if (eligibleGuests.length === 0) return;
+
+    // Weight by personality
+    const guest = eligibleGuests[Math.floor(Math.random() * eligibleGuests.length)];
+    const personality = guest.getPersonality();
+
+    // Chatty posts more, Shy posts less
+    if (personality === Personality.Shy && Math.random() > SOCIAL_MEDIA_CONFIG.shyMultiplier) return;
+    // Normal and chatty guests always proceed (chatty is more likely to reach here)
+
+    const sat = guest.getSatisfaction();
+    let emoji: string;
+    let hypeChange = 0;
+    let color = '#ffffff';
+
+    if (sat > SOCIAL_MEDIA_CONFIG.positiveThreshold) {
+      const emojis = SOCIAL_MEDIA_CONFIG.positiveEmojis;
+      emoji = emojis[Math.floor(Math.random() * emojis.length)];
+      hypeChange = SOCIAL_MEDIA_CONFIG.positiveHypeBonus;
+      // Check for Influencer VIP multiplier
+      if (this.activeVIPs.has(VIPType.Influencer)) {
+        hypeChange *= 2;
+      }
+      color = '#4caf50';
+      this.totalPositivePosts++;
+    } else if (sat < SOCIAL_MEDIA_CONFIG.negativeThreshold) {
+      const emojis = SOCIAL_MEDIA_CONFIG.negativeEmojis;
+      emoji = emojis[Math.floor(Math.random() * emojis.length)];
+      hypeChange = -SOCIAL_MEDIA_CONFIG.negativeHypePenalty;
+      color = '#f44336';
+      this.totalNegativePosts++;
+    } else {
+      const emojis = SOCIAL_MEDIA_CONFIG.neutralEmojis;
+      emoji = emojis[Math.floor(Math.random() * emojis.length)];
+      // No hype change for neutral
+      color = '#aaaaaa';
+    }
+
+    this.hypeLevel = Phaser.Math.Clamp(this.hypeLevel + hypeChange, 0, HYPE_CONFIG.maxHype);
+
+    // Float emoji above guest
+    const postText = this.add.text(guest.x, guest.y - 30, `\u{1F4F1}${emoji}`, { fontSize: '16px' }).setOrigin(0.5, 0.5).setDepth(50);
+    const hypeLabel = hypeChange !== 0
+      ? this.add.text(guest.x + 20, guest.y - 30, `${hypeChange > 0 ? '+' : ''}${hypeChange}`, { fontSize: '10px', color, fontStyle: 'bold' }).setOrigin(0, 0.5).setDepth(50)
+      : null;
+
+    this.tweens.add({
+      targets: [postText, hypeLabel].filter(Boolean),
+      y: `-=${SOCIAL_MEDIA_CONFIG.floatHeight}`,
+      alpha: 0,
+      duration: SOCIAL_MEDIA_CONFIG.floatDuration,
+      onComplete: () => { postText.destroy(); hypeLabel?.destroy(); },
+    });
+  }
+
+  // === Phase 5: Hit the Chats ===
+
+  private createChatButton(): void {
+    const btnX = GAME_WIDTH - 70;
+    const btnY = 140;
+    this.chatButton = this.makeSmallButton(btnX, btnY, 100, 22, '\u{1F4AC} Hit Chats (3)', 0x9c27b0, () => this.hitTheChats());
+    this.chatButtonText = this.add.text(btnX, btnY + 16, '', { fontSize: '9px', color: '#aaaaaa' }).setOrigin(0.5, 0.5).setDepth(10);
+  }
+
+  private hitTheChats(): void {
+    if (this.chatUsesRemaining <= 0 || this.chatCooldown > 0 || this.chatBoostActive) return;
+
+    this.chatUsesRemaining--;
+    this.chatBoostActive = true;
+    this.chatBoostTimer = HIT_THE_CHATS_CONFIG.boostDuration;
+    this.chatCooldown = HIT_THE_CHATS_CONFIG.cooldown;
+
+    // Hype bonus
+    this.hypeLevel = Math.min(HYPE_CONFIG.maxHype, this.hypeLevel + HIT_THE_CHATS_CONFIG.hypeBonus);
+
+    // Chat emoji animation — emojis fly across screen
+    const emojis = HIT_THE_CHATS_CONFIG.chatEmojis;
+    for (let i = 0; i < emojis.length; i++) {
+      const emojiText = this.add.text(
+        Phaser.Math.Between(50, 200),
+        Phaser.Math.Between(GAME_HEIGHT - 100, GAME_HEIGHT - 50),
+        emojis[i],
+        { fontSize: '24px' }
+      ).setDepth(50);
+
+      this.tweens.add({
+        targets: emojiText,
+        x: Phaser.Math.Between(GAME_WIDTH - 200, GAME_WIDTH - 50),
+        y: Phaser.Math.Between(50, 150),
+        alpha: 0,
+        duration: 1200,
+        delay: i * 150,
+        onComplete: () => emojiText.destroy(),
+      });
+    }
+
+    // Immediate guest spawns
+    const spawns = this.hypeLevel > HIT_THE_CHATS_CONFIG.highHypeThreshold
+      ? HIT_THE_CHATS_CONFIG.highHypeImmediateSpawns
+      : HIT_THE_CHATS_CONFIG.immediateSpawns;
+    for (let i = 0; i < spawns; i++) {
+      this.spawnGuest();
+    }
+  }
+
+  private updateChatTimers(delta: number): void {
+    if (this.chatBoostActive) {
+      this.chatBoostTimer -= delta;
+      if (this.chatBoostTimer <= 0) {
+        this.chatBoostActive = false;
+        this.chatBoostTimer = 0;
+      }
+    }
+    if (this.chatCooldown > 0) {
+      this.chatCooldown -= delta;
+    }
+
+    // Update button text
+    if (this.chatBoostActive) {
+      this.chatButtonText.setText(`Active: ${Math.ceil(this.chatBoostTimer / 1000)}s`);
+      this.chatButtonText.setColor('#4caf50');
+    } else if (this.chatCooldown > 0) {
+      this.chatButtonText.setText(`Cooldown: ${Math.ceil(this.chatCooldown / 1000)}s`);
+      this.chatButtonText.setColor('#ff9800');
+      this.chatButton.setAlpha(0.5);
+    } else {
+      this.chatButtonText.setText(`Uses: ${this.chatUsesRemaining}/${HIT_THE_CHATS_CONFIG.maxUses}`);
+      this.chatButtonText.setColor('#aaaaaa');
+      this.chatButton.setAlpha(this.chatUsesRemaining > 0 ? 1 : 0.3);
+    }
+  }
+
+  // === Phase 5: VIP Guests ===
+
+  private checkVIPArrivals(): void {
+    for (const vipType of Object.values(VIPType)) {
+      if (this.vipThresholdsCrossed.has(vipType)) continue;
+      if (this.activeVIPs.has(vipType)) continue;
+
+      const config = VIP_CONFIG.types[vipType];
+      if (this.hypeLevel >= config.hypeThreshold) {
+        this.vipThresholdsCrossed.add(vipType);
+
+        // Announce
+        const announcement = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 50, `\u2B50 VIP ${config.label} arriving! \u2B50`, {
+          fontSize: '18px', color: '#ffd700', fontStyle: 'bold',
+          stroke: '#000', strokeThickness: 3,
+        }).setOrigin(0.5, 0.5).setDepth(60);
+
+        this.tweens.add({
+          targets: announcement, alpha: 0, y: GAME_HEIGHT / 2 - 100,
+          duration: 3000, onComplete: () => announcement.destroy(),
+        });
+
+        // Spawn after delay
+        this.time.delayedCall(VIP_CONFIG.arrivalDelay, () => {
+          this.spawnVIP(vipType);
+        });
+      }
+    }
+  }
+
+  private spawnVIP(type: VIPType): void {
+    if (this.activeVIPs.has(type)) return;
+
+    const config = VIP_CONFIG.types[type];
+    const entrance = ZONES.entrance;
+    const guest = new Guest(
+      this,
+      entrance.x + entrance.width / 2,
+      entrance.y,
+      config.label
+    );
+
+    // Override starting needs — VIPs are happier
+    const { min, max } = VIP_CONFIG.startingNeeds;
+    guest.modifyHunger(Phaser.Math.Between(min, max) - guest.getHunger());
+    guest.modifyFun(Phaser.Math.Between(min, max) - guest.getFun());
+    guest.modifySocial(Phaser.Math.Between(min, max) - guest.getSocial());
+    guest.modifyThirst(Phaser.Math.Between(min, max) - guest.getThirst());
+
+    guest.setVIP(type, config.icon, config.color);
+    guest.bathroomSignsPosted = this.signsPosted;
+
+    // Set up standard callbacks
+    this.setupGuestCallbacks(guest);
+
+    guest.on('guest-left', (g: Guest) => {
+      this.removeGuest(g);
+      this.guestsLeft++;
+    });
+
+    // Make clickable for introductions
+    guest.setSize(24, 24);
+    guest.setInteractive();
+    guest.setDepth(6);
+    guest.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      pointer.event.stopPropagation();
+      if (this.isPlacingTrashCan) return;
+      this.onGuestClicked(guest);
+    });
+
+    this.guests.push(guest);
+    this.needsSystem.registerGuest(guest);
+    this.totalGuestsSpawned++;
+    this.activeVIPs.set(type, guest);
+
+    guest.walkTo(
+      Phaser.Math.Between(VENUE.x + 60, VENUE.right - 60),
+      Phaser.Math.Between(VENUE.y + 60, VENUE.bottom - 80)
+    );
+  }
+
+  private applyVIPBonuses(delta: number): void {
+    const dt = delta / 1000;
+
+    // Pizza Chef: auto-orders pizza periodically
+    const chef = this.activeVIPs.get(VIPType.PizzaChef);
+    if (chef && chef.getGuestState() !== GuestState.Leaving) {
+      this.pizzaChefTimer += delta;
+      const interval = VIP_CONFIG.types[VIPType.PizzaChef].autoPizzaInterval;
+      if (this.pizzaChefTimer >= interval) {
+        this.pizzaChefTimer = 0;
+        // Order a random pizza type that isn't full
+        const types = [PizzaType.Pepperoni, PizzaType.Veggie, PizzaType.Hawaiian];
+        const shuffled = types.sort(() => Math.random() - 0.5);
+        for (const t of shuffled) {
+          if (!this.pizzaStation.isFullForType(t)) {
+            this.pizzaStation.orderPizza(t);
+            break;
+          }
+        }
+      }
+    }
+
+    // Influencer: passive fun bonus to all guests
+    const influencer = this.activeVIPs.get(VIPType.Influencer);
+    if (influencer && influencer.getGuestState() !== GuestState.Leaving) {
+      const bonus = VIP_CONFIG.types[VIPType.Influencer].passiveFunBonus;
+      for (const guest of this.guests) {
+        guest.modifyFun(bonus * dt);
+      }
+    }
+
+    // DJ Superstar: add passive hype (DJ fun bonus multiplier handled in applyEntertainmentBonuses)
+    const djStar = this.activeVIPs.get(VIPType.DJSuperstar);
+    if (djStar && djStar.getGuestState() !== GuestState.Leaving) {
+      this.hypeLevel = Math.min(HYPE_CONFIG.maxHype, this.hypeLevel + VIP_CONFIG.types[VIPType.DJSuperstar].passiveHypeBonus * dt);
+    }
+  }
+
+  // === Phase 5: Party Milestones ===
+
+  private checkMilestones(delta: number): void {
+    const avgSat = this.needsSystem.getAverageSatisfaction();
+
+    // Good Vibes: avg sat >= 70 for 10 consecutive seconds
+    if (!this.milestonesAchieved.has('goodVibes')) {
+      if (avgSat >= MILESTONE_CONFIG.goodVibes.satThreshold) {
+        this.goodVibesDuration += delta;
+        if (this.goodVibesDuration >= MILESTONE_CONFIG.goodVibes.durationRequired) {
+          this.triggerMilestone('goodVibes', 'Good Vibes!');
+          this.hypeLevel = Math.min(HYPE_CONFIG.maxHype, this.hypeLevel + MILESTONE_CONFIG.goodVibes.hypeReward);
+          for (const g of this.guests) g.modifyFun(MILESTONE_CONFIG.goodVibes.funBonus);
+        }
+      } else {
+        this.goodVibesDuration = 0;
+      }
+    }
+
+    // Full House: 12+ guests
+    if (!this.milestonesAchieved.has('fullHouse') && this.guests.length >= MILESTONE_CONFIG.fullHouse.guestThreshold) {
+      this.triggerMilestone('fullHouse', 'Full House!');
+      this.hypeLevel = Math.min(HYPE_CONFIG.maxHype, this.hypeLevel + MILESTONE_CONFIG.fullHouse.hypeReward);
+      this.milestoneSpawnBoostTimer = MILESTONE_CONFIG.fullHouse.spawnBoostDuration;
+    }
+
+    // Social Butterfly: 5 introductions
+    if (!this.milestonesAchieved.has('socialButterfly') && this.introducedPairs.size >= MILESTONE_CONFIG.socialButterfly.introductionsRequired) {
+      this.triggerMilestone('socialButterfly', 'Social Butterfly!');
+      this.hypeLevel = Math.min(HYPE_CONFIG.maxHype, this.hypeLevel + MILESTONE_CONFIG.socialButterfly.hypeReward);
+      const talkers = this.guests.filter(g => g.getGuestState() === GuestState.Talking);
+      for (const g of talkers) g.modifySocial(MILESTONE_CONFIG.socialButterfly.socialBonus);
+    }
+
+    // Clean Machine: 0 trash with 8+ guests
+    if (!this.milestonesAchieved.has('cleanMachine') && this.trashItems.length <= MILESTONE_CONFIG.cleanMachine.maxTrash && this.guests.length >= MILESTONE_CONFIG.cleanMachine.minGuests) {
+      this.triggerMilestone('cleanMachine', 'Clean Machine!');
+      this.hypeLevel = Math.min(HYPE_CONFIG.maxHype, this.hypeLevel + MILESTONE_CONFIG.cleanMachine.hypeReward);
+      this.trashDropMultiplier = MILESTONE_CONFIG.cleanMachine.trashDropMultiplier;
+      this.trashReductionTimer = MILESTONE_CONFIG.cleanMachine.trashReductionDuration;
+    }
+
+    // Hype Train: hype reaches 80
+    if (!this.milestonesAchieved.has('hypeTrain') && this.hypeLevel >= MILESTONE_CONFIG.hypeTrain.hypeThreshold) {
+      this.triggerMilestone('hypeTrain', 'Hype Train!');
+      this.partyTimer += MILESTONE_CONFIG.hypeTrain.timeReward;
+      for (let i = 0; i < MILESTONE_CONFIG.hypeTrain.bonusGuests; i++) this.spawnGuest();
+    }
+
+    // Update trash reduction timer
+    if (this.trashReductionTimer > 0) {
+      this.trashReductionTimer -= delta;
+      if (this.trashReductionTimer <= 0) {
+        this.trashDropMultiplier = 1;
+      }
+    }
+
+    // Update milestone spawn boost timer
+    if (this.milestoneSpawnBoostTimer > 0) {
+      this.milestoneSpawnBoostTimer -= delta;
+    }
+  }
+
+  private triggerMilestone(id: string, label: string): void {
+    this.milestonesAchieved.add(id);
+
+    // Gold announcement
+    const text = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 30, `\u{1F3C6} ${label}`, {
+      fontSize: '24px', color: '#ffd700', fontStyle: 'bold',
+      stroke: '#000', strokeThickness: 4,
+    }).setOrigin(0.5, 0.5).setDepth(60);
+
+    this.tweens.add({
+      targets: text,
+      scaleX: 1.3, scaleY: 1.3,
+      duration: 300,
+      yoyo: true,
+      onComplete: () => {
+        this.tweens.add({
+          targets: text, alpha: 0, y: text.y - 40,
+          duration: 1500, onComplete: () => text.destroy(),
+        });
+      },
+    });
+
+    // Celebration emojis
+    const celebEmojis = ['\u{1F389}', '\u2B50', '\u{1F525}'];
+    for (let i = 0; i < 3; i++) {
+      const e = this.add.text(
+        GAME_WIDTH / 2 + Phaser.Math.Between(-50, 50),
+        GAME_HEIGHT / 2,
+        celebEmojis[i],
+        { fontSize: '20px' }
+      ).setDepth(60);
+      this.tweens.add({
+        targets: e, y: e.y - 80, alpha: 0,
+        duration: 1200, delay: i * 200,
+        onComplete: () => e.destroy(),
+      });
+    }
+  }
+
   // --- Game loop ---
 
   update(time: number, delta: number): void {
@@ -1236,9 +1778,9 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
-    // Spawn guests
+    // Spawn guests — Phase 5: hype-driven spawn interval
     this.guestSpawnTimer += delta;
-    if (this.guestSpawnTimer >= GUEST_CONFIG.spawnInterval) {
+    if (this.guestSpawnTimer >= this.getCurrentSpawnInterval()) {
       this.guestSpawnTimer = 0;
       this.spawnGuest();
     }
@@ -1262,6 +1804,13 @@ export class GameScene extends Phaser.Scene {
     this.applyDrunkPenalty(delta);
     this.applyEntertainmentBonuses(delta);
     this.applyConversationBonuses(delta);
+
+    // Phase 5: Hype, social media, chat timers, VIP bonuses, milestones
+    this.updateHype(delta);
+    this.updateSocialMedia(delta);
+    this.updateChatTimers(delta);
+    this.applyVIPBonuses(delta);
+    this.checkMilestones(delta);
 
     // Feature 5: Introduction cooldown tick
     if (this.introductionCooldown > 0) {

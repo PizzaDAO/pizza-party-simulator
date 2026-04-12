@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import {
   GUEST_CONFIG, NEEDS_DECAY, BLADDER_CONFIG, DRUNK_CONFIG, VENUE, ZONES, SIGNAGE_CONFIG,
   Personality, PERSONALITY_CONFIG, PizzaType, PIZZA_PREFERENCE_BONUS,
+  VIPType,
 } from '../config/GameConfig';
 
 export enum GuestState {
@@ -71,6 +72,9 @@ export class Guest extends Phaser.GameObjects.Container {
   // Bathroom awareness
   public bathroomSignsPosted: boolean = false;
 
+  // VIP
+  public vipType: VIPType | null = null;
+
   // Callbacks
   public onWantsPizza?: () => boolean;
   public onWantsDrink?: () => boolean;
@@ -132,6 +136,11 @@ export class Guest extends Phaser.GameObjects.Container {
     this.bodyGraphics.fillCircle(0, 0, 12);
     this.bodyGraphics.lineStyle(2, this.isDrunk ? 0xff6b6b : 0xffffff, 0.8);
     this.bodyGraphics.strokeCircle(0, 0, 12);
+    // VIP gold border
+    if (this.vipType !== null) {
+      this.bodyGraphics.lineStyle(2, 0xffd700, 1);
+      this.bodyGraphics.strokeCircle(0, 0, 15);
+    }
     // Drunk swirl indicator
     if (this.isDrunk) {
       this.bodyGraphics.lineStyle(1, 0xff6b6b, 0.6);
@@ -225,6 +234,15 @@ export class Guest extends Phaser.GameObjects.Container {
   }
   public modifyThirst(amount: number): void {
     this.thirst = Phaser.Math.Clamp(this.thirst + amount, 0, 100);
+  }
+
+  public isVIP(): boolean { return this.vipType !== null; }
+
+  public setVIP(type: VIPType, icon: string, color: number): void {
+    this.vipType = type;
+    this.bodyColor = color;
+    this.drawBody();
+    this.nameLabel.setText(`\u2B50${icon}${this.guestName}`);
   }
 
   public getSatisfaction(): number {
